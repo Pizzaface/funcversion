@@ -1,0 +1,16 @@
+[tool.poetry]
+name = "funcversion"
+version = "0.1.0"
+description = "Allows you to run versioned python functions."
+authors = ["Your Name <you@example.com>"]
+license = "MIT"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+pytest = "^8.3.3"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
