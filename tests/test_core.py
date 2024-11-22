@@ -308,6 +308,46 @@ def test_method_on_inherited_class():
     assert sub.method(_version='1.0.0') == 'BaseClass version 1.0.0'
 
 
+def test_multiple_inheritance_levels():
+    class GrandBase:
+        @version('1.0.0')
+        def method(self):
+            return 'GrandBase version 1.0.0'
+
+    class BaseClass(GrandBase):
+        @version('1.0.0')
+        def method(self):
+            return 'BaseClass version 1.0.0'
+
+    class SubClass(BaseClass):
+        @version('1.0.0')
+        def method(self):
+            return 'SubClass version 1.0.0'
+
+    grand_base = GrandBase()
+    base = BaseClass()
+    sub = SubClass()
+
+    assert grand_base.method() == 'GrandBase version 1.0.0'
+    assert base.method() == 'BaseClass version 1.0.0'
+    assert sub.method() == 'SubClass version 1.0.0'
+
+def test_method_on_inherited_class_overriding():
+    class BaseClass:
+        @version('1.0.0')
+        def method(self):
+            return 'BaseClass version 1.0.0'
+
+    class SubClass(BaseClass):
+        @version('1.0.0')
+        def method(self):
+            return 'SubClass version 1.0.0'
+
+    base = BaseClass()
+    sub = SubClass()
+    assert base.method() == 'BaseClass version 1.0.0'
+    assert sub.method() == 'SubClass version 1.0.0'
+
 def test_method_deprecation():
     class MyClass:
         @version('1.0.0')

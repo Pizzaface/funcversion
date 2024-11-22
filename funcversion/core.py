@@ -178,16 +178,16 @@ class VersionedFunction:
     def _get_versions_in_mro(self, owner: Type[Any]) -> dict[str, Callable]:
         """
         Get versions from the method resolution order (MRO) for inheritance.
+        Traverse MRO in reverse to ensure subclass versions override base class versions.
 
-        Args:
-            owner (Type[Any]): The owner class.
-
-        Returns:
-            dict[str, Callable]: Merged versions from the MRO.
+        :param owner: The owner class.
+        :return: A dictionary of versions.
         """
         versions: dict[str, Callable] = {}
-        attr_name = self.name.split('.')[-1]
-        for cls in owner.mro():
+        attr_name = self.name.split(".")[-1]
+
+        # Reverse MRO to ensure subclass versions override base class versions
+        for cls in reversed(owner.mro()):
             cls_attr = cls.__dict__.get(attr_name)
             if isinstance(cls_attr, VersionedFunction):
                 versions.update(cls_attr.versions)
