@@ -1,10 +1,10 @@
-name: Lint and Format with Ruff and isort
+name: Lint, Format, and Publish
 
 on:
   push:
     branches:
       - master  # Adjust the branch name as needed
-      
+
 permissions:
   contents: write  # Grants write access to repository contents
 
@@ -17,14 +17,15 @@ jobs:
         python-version: ["3.11"]  # Specify the Python versions you want to test against
 
     steps:
-      # This workflow performs the following actions:
+      # This job performs the following actions:
       # 1. Checks out the repository.
       # 2. Sets up the specified Python version.
-      # 3. Installs necessary dependencies (`isort` and `ruff`).
+      # 3. Installs necessary dependencies (`isort`, `ruff`, `packaging`, and `build`).
       # 4. Sorts imports using `isort`.
       # 5. Formats the code using `ruff`.
       # 6. Lints the code with `ruff`.
-      # 7. Commits and pushes any formatting changes back to the repository.
+      # 7. Updates Python versions using `github-action-python-versioner`.
+      # 8. Commits and pushes any formatting changes back to the repository.
 
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -39,7 +40,7 @@ jobs:
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install isort ruff
+          pip install isort ruff packaging build
 
       - name: Sort Imports with isort
         run: isort ./funcversion
@@ -49,6 +50,9 @@ jobs:
 
       - name: Lint Code with Ruff
         run: ruff check ./funcversion
+
+      - name: Python Versioner
+        uses: kurtmc/github-action-python-versioner@v1
 
       - name: Commit Formatted Code
         run: |
@@ -70,3 +74,39 @@ jobs:
           fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-and-publish:
+    needs: lint-and-format  # Ensures this job runs after lint-and-format succeeds
+    runs-on: ubuntu-latest
+    environment: release  # Associates this job with the 'release' environment
+
+    steps:
+      # This job performs the following actions:
+      # 1. Checks out the repository.
+      # 2. Sets up Python.
+      # 3. Installs necessary dependencies (`build` and `twine`).
+      # 4. Builds the package.
+      # 5. Publishes the package to PyPI.
+
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Install Build and Twine
+        run: |
+          python -m pip install --upgrade pip
+          pip install build twine
+
+      - name: Build Package
+        run: python -m build
+
+      - name: Publish to PyPI
+        run: |
+          python -m twine upload dist/*
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
