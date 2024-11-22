@@ -2,13 +2,14 @@
 name = "funcversion"
 version = "0.1.0"
 description = "Allows you to run versioned python functions."
-authors = ["Your Name <you@example.com>"]
+authors = ["Jordan Pizza"]
 license = "MIT"
 readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.11"
 pytest = "^8.3.3"
+packaging = "^24.2"
 
 
 [build-system]

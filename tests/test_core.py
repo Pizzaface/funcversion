@@ -1,6 +1,10 @@
+from functools import wraps
+
 import pytest
 import warnings
-from funcversion.core import version, VersionNotFoundError, VersionedFunction
+from funcversion.core import VersionNotFoundError, VersionedFunction
+from funcversion import version
+
 
 def test_global_function_versions():
     @version('1.0.0')
@@ -131,7 +135,7 @@ def test_available_versions():
         return "Version 2.0.0"
 
     expected_versions = ['1.0.0', '1.1.0', '2.0.0']
-    assert func.available_versions() == expected_versions
+    assert func.available_versions == expected_versions
 
 def test_no_versions_registered():
     func = VersionedFunction('nonexistent_function')
@@ -206,7 +210,7 @@ def test_version_ordering():
         return "Version 2.0.0"
 
     expected_versions = ['1.0.0', '1.0.1', '1.1.0', '2.0.0']
-    assert func.available_versions() == expected_versions
+    assert func.available_versions == expected_versions
     assert func() == "Version 2.0.0"
 
 def test_method_on_inherited_class():
@@ -367,3 +371,592 @@ def test_multiple_functions_same_name_different_modules():
     assert module_a.func() == "Function in test_module_a"
 
     del sys.modules[module_name]
+
+
+def test_remove_all_versions():
+    @version('1.0.0')
+    def func():
+        return "Version 1.0.0"
+
+    @version('2.0.0')
+    def func():
+        return "Version 2.0.0"
+
+    func.remove_version('1.0.0')
+    func.remove_version('2.0.0')
+
+    with pytest.raises(ValueError) as exc_info:
+        func()
+    assert "No versions registered for function" in str(exc_info.value)
+
+    with pytest.raises(VersionNotFoundError):
+        func(version='1.0.0')
+
+
+def test_deprecate_all_versions():
+    @version('1.0.0')
+    def func():
+        return "Version 1.0.0"
+
+    @version('2.0.0')
+    def func():
+        return "Version 2.0.0"
+
+    func.deprecate_version('1.0.0')
+    func.deprecate_version('2.0.0')
+
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        assert func(version='1.0.0') == "Version 1.0.0"
+        assert len(w) == 1
+        assert issubclass(w[0].category, DeprecationWarning)
+        assert "is deprecated" in str(w[0].message)
+
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        assert func(version='2.0.0') == "Version 2.0.0"
+        assert len(w) == 1
+        assert issubclass(w[0].category, DeprecationWarning)
+        assert "is deprecated" in str(w[0].message)
+
+
+def test_add_version_after_initial_definitions():
+    @version('1.0.0')
+    def func():
+        return "Version 1.0.0"
+
+    assert func() == "Version 1.0.0"
+
+    @version('1.1.0')
+    def func():
+        return "Version 1.1.0"
+
+    assert func() == "Version 1.1.0"
+    assert func(version='1.0.0') == "Version 1.0.0"
+    assert func(version='1.1.0') == "Version 1.1.0"
+
+
+def test_semantic_versioning_with_prerelease():
+    @version('1.0.0-alpha')
+    def func():
+        return "Version 1.0.0-alpha"
+
+    @version('1.0.0')
+    def func():
+        return "Version 1.0.0"
+
+    @version('1.1.0-beta')
+    def func():
+        return "Version 1.1.0-beta"
+
+    @version('1.1.0')
+    def func():
+        return "Version 1.1.0"
+
+    @version('2.0.0+build.1')
+    def func():
+        return "Version 2.0.0+build.1"
+
+    assert func() == "Version 2.0.0+build.1"
+    assert func(version='1.0.0-alpha') == "Version 1.0.0-alpha"
+    assert func(version='1.0.0') == "Version 1.0.0"
+    assert func(version='1.1.0-beta') == "Version 1.1.0-beta"
+    assert func(version='1.1.0') == "Version 1.1.0"
+    assert func(version='2.0.0+build.1') == "Version 2.0.0+build.1"
+
+
+def test_invalid_version_identifier_types():
+    with pytest.raises(ValueError):
+        @version(1.0)  # Non-string version identifier
+        def func():
+            pass
+
+    with pytest.raises(ValueError):
+        @version(None)  # Non-string version identifier
+        def func():
+            pass
+
+    with pytest.raises(ValueError):
+        @version(['1.0.0'])  # Non-string version identifier
+        def func():
+            pass
+
+
+def test_versions_dict_property():
+    @version('1.0.0')
+    def func():
+        return "Version 1.0.0"
+
+    @version('2.0.0')
+    def func():
+        return "Version 2.0.0"
+
+    assert isinstance(func.versions_dict, dict)
+    assert '1.0.0' in func.versions_dict
+    assert '2.0.0' in func.versions_dict
+    assert func.versions_dict['1.0.0']() == "Version 1.0.0"
+    assert func.versions_dict['2.0.0']() == "Version 2.0.0"
+
+
+def test_list_callables_method():
+    @version('1.0.0')
+    def func():
+        return "Version 1.0.0"
+
+    @version('2.0.0')
+    def func():
+        return "Version 2.0.0"
+
+    callables = func.callables
+    assert isinstance(callables, dict)
+    assert '1.0.0' in callables
+    assert '2.0.0' in callables
+    assert callables['1.0.0']() == "Version 1.0.0"
+    assert callables['2.0.0']() == "Version 2.0.0"
+
+
+def test_deprecate_version_multiple_times():
+    @version('1.0.0')
+    def func():
+        return "Version 1.0.0"
+
+    func.deprecate_version('1.0.0')
+    # Deprecating again should not raise an error but should maintain the deprecated state
+    func.deprecate_version('1.0.0')
+
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        assert func(version='1.0.0') == "Version 1.0.0"
+        assert len(w) == 1
+        assert issubclass(w[0].category, DeprecationWarning)
+
+
+def test_remove_version_multiple_times():
+    @version('1.0.0')
+    def func():
+        return "Version 1.0.0"
+
+    func.remove_version('1.0.0')
+
+    with pytest.raises(VersionNotFoundError):
+        func.remove_version('1.0.0')
+
+
+def test_versions_after_removal():
+    @version('1.0.0')
+    def func():
+        return "Version 1.0.0"
+
+    @version('2.0.0')
+    def func():
+        return "Version 2.0.0"
+
+    func.remove_version('2.0.0')
+    assert func() == "Version 1.0.0"
+
+    with pytest.raises(VersionNotFoundError):
+        func(version='2.0.0')
+
+
+def test_versions_after_deprecation():
+    @version('1.0.0')
+    def func():
+        return "Version 1.0.0"
+
+    @version('2.0.0')
+    def func():
+        return "Version 2.0.0"
+
+    func.deprecate_version('1.0.0')
+
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        assert func(version='1.0.0') == "Version 1.0.0"
+        assert len(w) == 1
+        assert issubclass(w[0].category, DeprecationWarning)
+
+    # Ensure that the latest version is still callable without warnings
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        assert func() == "Version 2.0.0"
+        assert len(w) == 0
+
+
+def test_inheritance_with_multiple_levels():
+    class Base:
+        @version('1.0.0')
+        def method(self):
+            return "Base version 1.0.0"
+
+    class Intermediate(Base):
+        @version('1.1.0')
+        def method(self):
+            return "Intermediate version 1.1.0"
+
+    class Derived(Intermediate):
+        @version('2.0.0')
+        def method(self):
+            return "Derived version 2.0.0"
+
+    derived = Derived()
+    assert derived.method() == "Derived version 2.0.0"
+    assert derived.method(version='1.1.0') == "Intermediate version 1.1.0"
+    assert derived.method(version='1.0.0') == "Base version 1.0.0"
+
+    # List available versions
+    expected_versions = ['1.0.0', '1.1.0', '2.0.0']
+    assert derived.method.available_versions == expected_versions
+
+
+def test_latest_version_with_complex_semantic_versions():
+    @version('1.0.0-alpha')
+    def func():
+        return "Version 1.0.0-alpha"
+
+    @version('1.0.0-beta')
+    def func():
+        return "Version 1.0.0-beta"
+
+    @version('1.0.0')
+    def func():
+        return "Version 1.0.0"
+
+    @version('1.0.1')
+    def func():
+        return "Version 1.0.1"
+
+    @version('1.1.0-rc.1')
+    def func():
+        return "Version 1.1.0-rc.1"
+
+    @version('1.1.0')
+    def func():
+        return "Version 1.1.0"
+
+    @version('2.0.0+build.123')
+    def func():
+        return "Version 2.0.0+build.123"
+
+    assert func() == "Version 2.0.0+build.123"
+    assert func(version='1.0.0-alpha') == "Version 1.0.0-alpha"
+    assert func(version='1.0.0-beta') == "Version 1.0.0-beta"
+    assert func(version='1.0.0') == "Version 1.0.0"
+    assert func(version='1.0.1') == "Version 1.0.1"
+    assert func(version='1.1.0-rc.1') == "Version 1.1.0-rc.1"
+    assert func(version='1.1.0') == "Version 1.1.0"
+    assert func(version='2.0.0+build.123') == "Version 2.0.0+build.123"
+
+
+def test_access_versions_via_versions_property():
+    @version('1.0.0')
+    def func():
+        return "Version 1.0.0"
+
+    @version('2.0.0')
+    def func():
+        return "Version 2.0.0"
+
+    assert '1.0.0' in func.versions
+    assert '2.0.0' in func.versions
+    assert func.versions['1.0.0']() == "Version 1.0.0"
+    assert func.versions['2.0.0']() == "Version 2.0.0"
+
+
+def test_versioned_function_callable_with_args_kwargs():
+    @version('1.0.0')
+    def func(a, b=10, *args, **kwargs):
+        return a + b + sum(args) + sum(kwargs.values())
+
+    @version('2.0.0')
+    def func(a, b=20, *args, **kwargs):
+        return a * b * sum(args) * sum(kwargs.values())
+
+    # Test latest version
+    assert func(1, 2, 3, x=4, y=5) == 1 * 2 * (3) * (4 + 5)  # 1*2*3*9=54
+
+    # Test specific version
+    assert func(1, 2, 3, x=4, y=5, version='1.0.0') == 1 + 2 + 3 + 4 + 5  # 15
+
+    # Test defaults
+    assert func(1) == 1 * 20 * 0 * 0  # 0
+    assert func(1, version='1.0.0') == 1 + 10  # 11
+
+
+def test_versions_after_multiple_operations():
+    @version('1.0.0')
+    def func():
+        return "Version 1.0.0"
+
+    @version('1.1.0')
+    def func():
+        return "Version 1.1.0"
+
+    assert func() == "Version 1.1.0"
+    func.deprecate_version('1.0.0')
+    assert func(version='1.1.0') == "Version 1.1.0"
+    assert func(version='1.0.0') == "Version 1.0.0"
+
+    func.remove_version('1.1.0')
+    assert func() == "Version 1.0.0"
+
+    with pytest.raises(VersionNotFoundError):
+        func(version='1.1.0')
+
+    func.remove_version('1.0.0')
+    with pytest.raises(ValueError):
+        func()
+
+
+def test_versions_with_same_major_minor_different_patch():
+    @version('1.0.1')
+    def func():
+        return "Version 1.0.1"
+
+    @version('1.0.2')
+    def func():
+        return "Version 1.0.2"
+
+    @version('1.1.0')
+    def func():
+        return "Version 1.1.0"
+
+    @version('2.0.0')
+    def func():
+        return "Version 2.0.0"
+
+    expected_versions = ['1.0.1', '1.0.2', '1.1.0', '2.0.0']
+    assert func.available_versions == expected_versions
+    assert func() == "Version 2.0.0"
+    assert func(version='1.0.1') == "Version 1.0.1"
+    assert func(version='1.0.2') == "Version 1.0.2"
+    assert func(version='1.1.0') == "Version 1.1.0"
+
+
+def test_versioned_function_repr():
+    @version('1.0.0')
+    def func():
+        return "Version 1.0.0"
+
+    @version('2.0.0')
+    def func():
+        return "Version 2.0.0"
+
+    assert repr(func) == f"<VersionedFunction {func.name} versions: {func.available_versions}>"
+
+
+def test_versions_after_adding_invalid_version():
+    @version('1.0.0')
+    def func():
+        return "Version 1.0.0"
+
+    with pytest.raises(ValueError):
+        @version('invalid')
+        def func():
+            return "Invalid version"
+
+    # Ensure that the invalid version was not added
+    expected_versions = ['1.0.0']
+    assert func.available_versions == expected_versions
+
+
+def test_access_versions_via_versions_dict_property():
+    @version('1.0.0')
+    def func():
+        """Docstring for version 1.0.0"""
+        return "Version 1.0.0"
+
+    @version('2.0.0')
+    def func():
+        """Docstring for version 2.0.0"""
+        return "Version 2.0.0"
+
+    versions_dict = func.versions_dict
+    assert isinstance(versions_dict, dict)
+    assert '1.0.0' in versions_dict
+    assert '2.0.0' in versions_dict
+    assert versions_dict['1.0.0'].__doc__ == "Docstring for version 1.0.0"
+    assert versions_dict['2.0.0'].__doc__ == "Docstring for version 2.0.0"
+    assert versions_dict['1.0.0']() == "Version 1.0.0"
+    assert versions_dict['2.0.0']() == "Version 2.0.0"
+
+
+def test_versioned_function_is_callable_with_versions():
+    @version('1.0.0')
+    def func():
+        return "Version 1.0.0"
+
+    @version('2.0.0')
+    def func():
+        return "Version 2.0.0"
+
+    assert callable(func)
+    assert callable(func.versions_dict['1.0.0'])
+    assert callable(func.versions_dict['2.0.0'])
+    assert func() == "Version 2.0.0"
+    assert func(version='1.0.0') == "Version 1.0.0"
+
+
+def test_versioned_function_with_no_versions():
+    func = VersionedFunction('nonexistent_function')
+
+    with pytest.raises(ValueError):
+        func()
+
+    with pytest.raises(VersionNotFoundError):
+        func(version='1.0.0')
+
+
+def test_inherited_method_deprecation():
+    class Base:
+        @version('1.0.0')
+        def method(self):
+            return "Base version 1.0.0"
+
+    class Derived(Base):
+        @version('2.0.0')
+        def method(self):
+            return "Derived version 2.0.0"
+
+    derived = Derived()
+    derived.method.deprecate_version('1.0.0')
+
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        assert derived.method(version='1.0.0') == "Base version 1.0.0"
+        assert len(w) == 1
+        assert issubclass(w[0].category, DeprecationWarning)
+        assert "is deprecated" in str(w[0].message)
+
+
+def test_versioned_function_with_various_call_signatures():
+    @version('1.0.0')
+    def func(a, b, c=3):
+        return a + b + c
+
+    @version('2.0.0')
+    def func(a, b, c=3):
+        return a * b * c
+
+    assert func(1, 2) == 6  # 1 * 2 * 3
+    assert func(1, 2, 4) == 8  # 1 * 2 * 4
+    assert func(1, 2, c=5) == 10  # 1 * 2 * 5
+    assert func(1, 2, 4, version='1.0.0') == 7  # 1 + 2 + 4
+
+
+def test_multiple_decorators_with_version():
+    def uppercase(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            return func(*args, **kwargs).upper()
+
+        return wrapper
+
+    @version('1.0.0')
+    @uppercase
+    def func():
+        return "version 1.0.0"
+
+    @version('2.0.0')
+    @uppercase
+    def func():
+        return "version 2.0.0"
+
+    assert func() == "VERSION 2.0.0"
+    assert func(version='1.0.0') == "VERSION 1.0.0"
+    assert func(version='2.0.0') == "VERSION 2.0.0"
+
+
+def test_thread_safety_of_version_registry():
+    import threading
+
+    @version('1.0.0')
+    def func():
+        return "Version 1.0.0"
+
+    def register_version():
+        try:
+            # Register '1.1.0' version using add_version method
+            func.add_version('1.1.0', lambda: "Version 1.1.0")
+        except ValueError:
+            pass  # Expected if duplicate
+
+    threads = [threading.Thread(target=register_version) for _ in range(10)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+
+    # Only one version '1.1.0' should be registered
+    assert func.available_versions == ['1.0.0', '1.1.0']
+    assert func() == "Version 1.1.0"
+
+
+def test_versioned_function_with_partial_arguments():
+    @version('1.0.0')
+    def func(a, b, c=3):
+        return a + b + c
+
+    @version('1.1.0')
+    def func(a, b, c=4):
+        return a + b + c
+
+    assert func(1, 2) == 7  # 1 + 2 + 4
+    assert func(1, 2, version='1.0.0') == 6  # 1 + 2 + 3
+    assert func(1, 2, c=5) == 8  # 1 + 2 + 5
+    assert func(1, 2, c=5, version='1.0.0') == 8  # 1 + 2 + 5
+
+def test_access_deprecated_versions():
+    @version('1.0.0')
+    def func():
+        return "Version 1.0.0"
+
+    @version('2.0.0')
+    def func():
+        return "Version 2.0.0"
+
+    func.deprecate_version('1.0.0')
+
+    deprecated = func.deprecated_versions
+    assert deprecated == ['1.0.0']
+
+    # Deprecate the latest version
+    func.deprecate_version('2.0.0')
+    deprecated = func.deprecated_versions
+    assert deprecated == ['1.0.0', '2.0.0']
+
+
+def test_available_versions_after_adding_new_versions():
+    @version('1.0.0')
+    def func():
+        return "Version 1.0.0"
+
+    @version('1.1.0')
+    def func():
+        return "Version 1.1.0"
+
+    expected_versions = ['1.0.0', '1.1.0']
+    assert func.available_versions == expected_versions
+
+    @version('2.0.0')
+    def func():
+        return "Version 2.0.0"
+
+    expected_versions = ['1.0.0', '1.1.0', '2.0.0']
+    assert func.available_versions == expected_versions
+
+
+def test_list_callables_after_removal():
+    @version('1.0.0')
+    def func():
+        return "Version 1.0.0"
+
+    @version('2.0.0')
+    def func():
+        return "Version 2.0.0"
+
+    func.remove_version('1.0.0')
+
+    callables = func.callables
+    assert '1.0.0' not in callables
+    assert '2.0.0' in callables
+    assert callables['2.0.0']() == "Version 2.0.0"
