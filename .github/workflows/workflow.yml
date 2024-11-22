@@ -53,8 +53,7 @@ jobs:
       - name: Lint Code with Ruff
         run: ruff check ./funcversion
 
-      - name: Python Versioner
-        uses: kurtmc/github-action-python-versioner@v1
+
 
       - name: Commit Formatted Code
         run: |
