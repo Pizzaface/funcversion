@@ -1,0 +1,70 @@
+name: Lint and Format with Ruff and Blue
+
+on:
+  push:
+    branches:
+      - master  # Adjust the branch name as needed
+
+jobs:
+  lint-and-format:
+    runs-on: ubuntu-latest  # GitHub-hosted runner; automatically updated by GitHub
+
+    strategy:
+      matrix:
+        python-version: ["3.11"]  # Specify the Python versions you want to test against
+
+    steps:
+      # 1. Checkout the repository
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Required to push changes back
+
+      # 2. Set up Python
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4  # Ensure using the latest major version
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      # 4. Install dependencies with pip
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install blue ruff isort
+
+      # 5. Format code with Blue
+      - name: Format Code with Blue
+        run: |
+          blue ./funcversion
+
+      # 6. Lint code with Ruff
+      - name: Lint Code with Ruff
+        run: |
+          ruff check ./funcversion
+          
+      # 7. Format code with Ruff
+      - name: Lint Code with Ruff
+        run: |
+          ruff format ./funcversion
+
+      # 8. Commit and push any formatting changes made by Blue
+      - name: Commit Formatted Code
+        run: |
+          # Configure Git with a bot user
+          git config --local user.name "github-actions[bot]"
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # Stage changes in the specified directory
+          git add ./funcversion
+          
+          # Check if there are any changes to commit
+          if ! git diff --cached --quiet; then
+            # Commit changes with a message that includes [skip ci] to prevent triggering workflows again
+            git commit -m "Apply Blue formatting [skip ci]"
+            # Push changes back to the repository securely using GITHUB_TOKEN
+            git push
+          else
+            echo "No formatting changes to commit."
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Securely pass the token
