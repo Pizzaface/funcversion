@@ -184,7 +184,7 @@ class VersionedFunction:
         :return: A dictionary of versions.
         """
         versions: dict[str, Callable] = {}
-        attr_name = self.name.split(".")[-1]
+        attr_name = self.name.split('.')[-1]
 
         # Reverse MRO to ensure subclass versions override base class versions
         for cls in reversed(owner.mro()):
