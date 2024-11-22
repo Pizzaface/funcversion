@@ -81,16 +81,12 @@ def _validate_version_id(version_id: str) -> None:
         ValueError: If the version_id is not a valid semantic version.
     """
     if not isinstance(version_id, str):
-        raise ValueError(
-            f"Version identifier must be a string, got {type(version_id).__name__}."
-        )
+        raise ValueError(f"Version identifier must be a string, got {type(version_id).__name__}.")
 
     try:
         PkgVersion(version_id)
     except (InvalidVersion, TypeError) as e:
-        raise ValueError(
-            f"Version '{version_id}' is not a valid semantic version."
-        ) from e
+        raise ValueError(f"Version '{version_id}' is not a valid semantic version.") from e
 
 
 def _register_version(func_key: str, version_id: str, func: Callable) -> None:
@@ -106,9 +102,7 @@ def _register_version(func_key: str, version_id: str, func: Callable) -> None:
         ValueError: If the version is already registered.
     """
     if version_id in _version_registry[func_key]:
-        raise ValueError(
-            f"Version '{version_id}' is already registered for function '{func_key}'."
-        )
+        raise ValueError(f"Version '{version_id}' is already registered for function '{func_key}'.")
     _version_registry[func_key][version_id] = func
 
 

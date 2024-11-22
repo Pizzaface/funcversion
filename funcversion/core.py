@@ -3,17 +3,17 @@
 import warnings
 from collections import defaultdict
 from types import MethodType
-from typing import Any, Callable, Dict, List, Optional, Type, Union
+from typing import Any, Callable, Type, Optional, Union
 
 from packaging import version as pkg_version  # For semantic versioning
 
 from .exceptions import VersionNotFoundError
 
 # Global registry to store function versions
-_version_registry: defaultdict[str, Dict[str, Callable]] = defaultdict(dict)
+_version_registry: defaultdict[str, dict[str, Callable]] = defaultdict(dict)
 
 # Registry to store VersionedFunction instances
-_versioned_functions_registry: Dict[str, "VersionedFunction"] = {}
+_versioned_functions_registry: dict[str, "VersionedFunction"] = {}
 
 
 class VersionedFunction:
@@ -29,9 +29,9 @@ class VersionedFunction:
             func_key (str): The unique key of the function being versioned.
         """
         self.name: str = func_key
-        self.versions: Dict[str, Callable] = _version_registry[func_key]
+        self.versions: dict[str, Callable] = _version_registry[func_key]
 
-    def __call__(self, *args: Any, version: Optional[str] = None, **kwargs: Any) -> Any:
+    def __call__(self, *args: Any, version: str | None = None, **kwargs: Any) -> Any:
         """
         Call the specified version of the function.
 
@@ -52,9 +52,7 @@ class VersionedFunction:
         else:
             return self._call_latest_version(*args, **kwargs)
 
-    def __get__(
-        self, instance: Optional[Any], owner: Type[Any]
-    ) -> Union["VersionedFunction", MethodType]:
+    def __get__(self, instance: Optional[Any], owner: Type[Any]) -> Union["VersionedFunction", MethodType]:
         """
         Descriptor method to support instance methods and inheritance.
 
@@ -63,7 +61,7 @@ class VersionedFunction:
             owner (Type[Any]): The owner class.
 
         Returns:
-            Union[VersionedFunction, MethodType]: The callable versioned function.
+            Union[VersionedFunction, MethodType]: The bound method or self.
         """
         # Merge versions from base classes
         merged_versions = self._get_versions_in_mro(owner)
@@ -92,36 +90,32 @@ class VersionedFunction:
         self.versions[version_id] = func
 
     @property
-    def available_versions(self) -> List[str]:
+    def available_versions(self) -> list[str]:
         """
         Return a list of available version IDs, sorted in ascending order.
 
         Returns:
-            List[str]: List of version identifiers.
+            list[str]: list of version identifiers.
         """
         return sorted(self.versions.keys(), key=lambda v: pkg_version.parse(v))
 
     @property
-    def deprecated_versions(self) -> List[str]:
+    def deprecated_versions(self) -> list[str]:
         """
         Return a list of deprecated version IDs.
 
         Returns:
-            List[str]: List of deprecated version identifiers.
+            list[str]: list of deprecated version identifiers.
         """
-        return [
-            version
-            for version, func in self.versions.items()
-            if getattr(func, "_deprecated", False)
-        ]
+        return [version for version, func in self.versions.items() if getattr(func, "_deprecated", False)]
 
     @property
-    def callables(self) -> Dict[str, Callable]:
+    def callables(self) -> dict[str, Callable]:
         """
-        List all callable implementations with their version IDs.
+        list all callable implementations with their version IDs.
 
         Returns:
-            Dict[str, Callable]: Mapping of version IDs to callables.
+            dict[str, Callable]: Mapping of version IDs to callables.
         """
         return dict(self.versions)
 
@@ -148,9 +142,7 @@ class VersionedFunction:
         if self._version_exists(version_id):
             self.versions[version_id]._deprecated = True
         else:
-            raise VersionNotFoundError(
-                f"Version '{version_id}' not found for function '{self.name}'."
-            )
+            raise VersionNotFoundError(f"Version '{version_id}' not found for function '{self.name}'.")
 
     def remove_version(self, version_id: str) -> None:
         """
@@ -165,9 +157,7 @@ class VersionedFunction:
         if self._version_exists(version_id):
             del self.versions[version_id]
         else:
-            raise VersionNotFoundError(
-                f"Version '{version_id}' not found for function '{self.name}'."
-            )
+            raise VersionNotFoundError(f"Version '{version_id}' not found for function '{self.name}'.")
 
     def _get_latest_version(self) -> str:
         """
@@ -187,7 +177,7 @@ class VersionedFunction:
         )
         return sorted_versions[0]
 
-    def _get_versions_in_mro(self, owner: Type[Any]) -> Dict[str, Callable]:
+    def _get_versions_in_mro(self, owner: Type[Any]) -> dict[str, Callable]:
         """
         Get versions from the method resolution order (MRO) for inheritance.
 
@@ -195,27 +185,25 @@ class VersionedFunction:
             owner (Type[Any]): The owner class.
 
         Returns:
-            Dict[str, Callable]: Merged versions from the MRO.
+            dict[str, Callable]: Merged versions from the MRO.
         """
-        versions: Dict[str, Callable] = {}
+        versions: dict[str, Callable] = {}
         attr_name = self.name.split(".")[-1]
         for cls in owner.mro():
             cls_attr = cls.__dict__.get(attr_name)
             if isinstance(cls_attr, VersionedFunction):
                 versions.update(cls_attr.versions)
-            elif isinstance(cls_attr, (classmethod, staticmethod)) and isinstance(
-                cls_attr.__func__, VersionedFunction
-            ):
+            elif isinstance(cls_attr, (classmethod, staticmethod)) and isinstance(cls_attr.__func__, VersionedFunction):
                 versions.update(cls_attr.__func__.versions)
         return versions
 
     @property
-    def versions_dict(self) -> Dict[str, Callable]:
+    def versions_dict(self) -> dict[str, Callable]:
         """
         Access the versions dictionary directly.
 
         Returns:
-            Dict[str, Callable]: The versions' dictionary.
+            dict[str, Callable]: The versions' dictionary.
         """
         return self.versions
 
@@ -250,9 +238,7 @@ class VersionedFunction:
             self._warn_if_deprecated(func, version)
             return func(*args, **kwargs)
         else:
-            raise VersionNotFoundError(
-                f"Version '{version}' not found for function '{self.name}'."
-            )
+            raise VersionNotFoundError(f"Version '{version}' not found for function '{self.name}'.")
 
     def _call_latest_version(self, *args: Any, **kwargs: Any) -> Any:
         """
@@ -300,9 +286,7 @@ class VersionedFunction:
             ValueError: If the version is already registered or invalid.
         """
         if self._version_exists(version_id):
-            raise ValueError(
-                f"Version '{version_id}' is already registered for function '{self.name}'."
-            )
+            raise ValueError(f"Version '{version_id}' is already registered for function '{self.name}'.")
         if not self._is_valid_semantic_version(version_id):
             raise ValueError(f"Version '{version_id}' is not a valid semantic version.")
 
@@ -334,4 +318,3 @@ class VersionedFunction:
             return True
         except pkg_version.InvalidVersion:
             return False
-
