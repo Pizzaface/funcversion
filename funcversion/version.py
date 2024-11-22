@@ -67,7 +67,7 @@ def _get_function_key(func: Callable) -> str:
     Returns:
         str: The unique function key.
     """
-    return f"{func.__module__}.{func.__qualname__}"
+    return f'{func.__module__}.{func.__qualname__}'
 
 
 def _validate_version_id(version_id: str) -> None:
@@ -81,7 +81,7 @@ def _validate_version_id(version_id: str) -> None:
         ValueError: If the version_id is not a valid semantic version.
     """
     if not isinstance(version_id, str):
-        raise ValueError(f"Version identifier must be a string, got {type(version_id).__name__}.")
+        raise ValueError(f'Version identifier must be a string, got {type(version_id).__name__}.')
 
     try:
         PkgVersion(version_id)

@@ -4,4 +4,4 @@ from .core import VersionedFunction
 from .version import version
 from .exceptions import VersionNotFoundError
 
-__all__ = ["VersionedFunction", "VersionNotFoundError", "version"]
+__all__ = ['VersionedFunction', 'VersionNotFoundError', 'version']

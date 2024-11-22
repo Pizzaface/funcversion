@@ -13,7 +13,7 @@ from .exceptions import VersionNotFoundError
 _version_registry: defaultdict[str, dict[str, Callable]] = defaultdict(dict)
 
 # Registry to store VersionedFunction instances
-_versioned_functions_registry: dict[str, "VersionedFunction"] = {}
+_versioned_functions_registry: dict[str, 'VersionedFunction'] = {}
 
 
 class VersionedFunction:
@@ -52,7 +52,7 @@ class VersionedFunction:
         else:
             return self._call_latest_version(*args, **kwargs)
 
-    def __get__(self, instance: Optional[Any], owner: Type[Any]) -> Union["VersionedFunction", MethodType]:
+    def __get__(self, instance: Optional[Any], owner: Type[Any]) -> Union['VersionedFunction', MethodType]:
         """
         Descriptor method to support instance methods and inheritance.
 
@@ -107,7 +107,7 @@ class VersionedFunction:
         Returns:
             list[str]: list of deprecated version identifiers.
         """
-        return [version for version, func in self.versions.items() if getattr(func, "_deprecated", False)]
+        return [version for version, func in self.versions.items() if getattr(func, '_deprecated', False)]
 
     @property
     def callables(self) -> dict[str, Callable]:
@@ -188,7 +188,7 @@ class VersionedFunction:
             dict[str, Callable]: Merged versions from the MRO.
         """
         versions: dict[str, Callable] = {}
-        attr_name = self.name.split(".")[-1]
+        attr_name = self.name.split('.')[-1]
         for cls in owner.mro():
             cls_attr = cls.__dict__.get(attr_name)
             if isinstance(cls_attr, VersionedFunction):
@@ -214,7 +214,7 @@ class VersionedFunction:
         Returns:
             str: The string representation.
         """
-        return f"<VersionedFunction {self.name} versions: {self.available_versions}>"
+        return f'<VersionedFunction {self.name} versions: {self.available_versions}>'
 
     # Helper Methods to Reduce Conditional Complexity
 
@@ -269,7 +269,7 @@ class VersionedFunction:
             func (Callable): The function to check.
             version (str): The version identifier.
         """
-        if getattr(func, "_deprecated", False):
+        if getattr(func, '_deprecated', False):
             warnings.warn(
                 f"Version '{version}' of function '{self.name}' is deprecated.",
                 DeprecationWarning,
