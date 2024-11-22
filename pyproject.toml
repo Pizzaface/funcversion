@@ -1,8 +1,8 @@
 [tool.poetry]
 name = "funcversion"
 version = "0.1.0"
-description = "Allows you to run versioned python functions."
-authors = ["Jordan Pizza"]
+description = "A Python library for managing multiple versions of functions using decorators."
+authors = ["Pizzaface"]
 license = "MIT"
 readme = "README.md"
 
