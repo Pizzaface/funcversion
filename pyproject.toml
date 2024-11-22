@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "funcversion"
-version = "0.1.1"
+version = "0.1.2"
 description = "A Python library for managing multiple versions of functions using decorators."
 authors = ["Pizzaface"]
 license = "MIT"
