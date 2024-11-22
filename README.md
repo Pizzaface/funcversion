@@ -53,7 +53,7 @@ print(greet.available_versions)  # Output: ['1.0.0', '2.0.0']
 greet.deprecate_version('1.0.0')
 
 # Calling a deprecated version will issue a warning
-print(greet('Charlie', version='1.0.0'))  
+print(greet('Charlie', _version='1.0.0'))  
 # Output: Hello, Charlie!
 # Warning: DeprecationWarning: Version '1.0.0' of function 'your_module.greet' is deprecated.
 ```
@@ -65,7 +65,7 @@ print(greet('Charlie', version='1.0.0'))
 greet.remove_version('1.0.0')
 
 # Attempting to call the removed version will raise an error
-print(greet('Dana', version='1.0.0'))  
+print(greet('Dana', _version='1.0.0'))  
 # Raises VersionNotFoundError
 ```
 
@@ -147,7 +147,7 @@ A callable wrapper that manages different versions of a function.
 
 #### Methods:
 
-- `__call__(*args, version=None, **kwargs)`: Executes the specified version of the function. If no version is specified, the latest version is called.
+- `__call__(*args, _version=None, **kwargs)`: Executes the specified version of the function. If no version is specified, the latest version is called.
 - `add_version(version_id: str, func: Callable)`: Adds a new version to the function.
 - `current_version -> str`: Returns the version identifier of the currently executed function.
 - `available_versions -> List[str]`: Returns a sorted list of available version identifiers.
