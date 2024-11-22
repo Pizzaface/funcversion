@@ -1,5 +1,3 @@
-# funcversion/core.py
-
 import warnings
 from collections import defaultdict
 from types import MethodType
@@ -7,7 +5,7 @@ from typing import Any, Callable, Type, Optional, Union
 
 from packaging import version as pkg_version  # For semantic versioning
 
-from .exceptions import VersionNotFoundError
+from .exceptions import VersionNotFoundError, NoVersionsFoundError, InvalidVersionError, VersionExistsError
 
 # Global registry to store function versions
 _version_registry: defaultdict[str, dict[str, Callable]] = defaultdict(dict)
@@ -31,12 +29,12 @@ class VersionedFunction:
         self.name: str = func_key
         self.versions: dict[str, Callable] = _version_registry[func_key]
 
-    def __call__(self, *args: Any, version: str | None = None, **kwargs: Any) -> Any:
+    def __call__(self, *args: Any, _version: str | None = None, **kwargs: Any) -> Any:
         """
         Call the specified version of the function.
 
         Args:
-            version (str, optional): The version to execute. Defaults to the latest version.
+            _version (str, optional): The version to execute. Defaults to the latest version.
             *args: Positional arguments for the function.
             **kwargs: Keyword arguments for the function.
 
@@ -45,10 +43,10 @@ class VersionedFunction:
 
         Raises:
             VersionNotFoundError: If the specified version does not exist.
-            ValueError: If no versions are registered and no version is specified.
+            NoVersionsFoundError: If no versions are registered and no version is specified.
         """
-        if version is not None:
-            return self._call_specific_version(version, *args, **kwargs)
+        if _version is not None:
+            return self._call_specific_version(_version, *args, **kwargs)
         else:
             return self._call_latest_version(*args, **kwargs)
 
@@ -83,8 +81,8 @@ class VersionedFunction:
             func (Callable): The function implementation.
 
         Raises:
-            ValueError: If the version_id is already registered.
-            ValueError: If the version_id is not a valid semantic version.
+            VersionAlreadyExistsError: If the version_id is already registered.
+            InvalidVersionError: If the version_id is not a valid semantic version.
         """
         self._validate_new_version(version_id)
         self.versions[version_id] = func
@@ -167,7 +165,7 @@ class VersionedFunction:
             str: The latest version identifier.
         """
         if not self.versions:
-            raise ValueError(f"No versions registered for function '{self.name}'.")
+            raise NoVersionsFoundError(f"No versions registered for function '{self.name}'.")
 
         # Sort versions using semantic versioning
         sorted_versions = sorted(
@@ -197,16 +195,6 @@ class VersionedFunction:
                 versions.update(cls_attr.__func__.versions)
         return versions
 
-    @property
-    def versions_dict(self) -> dict[str, Callable]:
-        """
-        Access the versions dictionary directly.
-
-        Returns:
-            dict[str, Callable]: The versions' dictionary.
-        """
-        return self.versions
-
     def __repr__(self) -> str:
         """
         Return a string representation of the VersionedFunction.
@@ -218,12 +206,12 @@ class VersionedFunction:
 
     # Helper Methods to Reduce Conditional Complexity
 
-    def _call_specific_version(self, version: str, *args: Any, **kwargs: Any) -> Any:
+    def _call_specific_version(self, _version: str, *args: Any, **kwargs: Any) -> Any:
         """
         Call a specific version of the function.
 
         Args:
-            version (str): The version to call.
+            _version (str): The version to call.
             *args: Positional arguments.
             **kwargs: Keyword arguments.
 
@@ -233,12 +221,12 @@ class VersionedFunction:
         Raises:
             VersionNotFoundError: If the version does not exist.
         """
-        if self._version_exists(version):
-            func = self.versions[version]
-            self._warn_if_deprecated(func, version)
+        if self._version_exists(_version):
+            func = self.versions[_version]
+            self._warn_if_deprecated(func, _version)
             return func(*args, **kwargs)
         else:
-            raise VersionNotFoundError(f"Version '{version}' not found for function '{self.name}'.")
+            raise VersionNotFoundError(f"Version '{_version}' not found for function '{self.name}'.")
 
     def _call_latest_version(self, *args: Any, **kwargs: Any) -> Any:
         """
@@ -252,26 +240,26 @@ class VersionedFunction:
             Any: Result of the function call.
 
         Raises:
-            ValueError: If no versions are registered.
+            NoVersionsFoundError: If no versions are registered.
         """
         if not self.versions:
-            raise ValueError(f"No versions registered for function '{self.name}'.")
+            raise NoVersionsFoundError(f"No versions registered for function '{self.name}'.")
         latest_version = self._get_latest_version()
         func = self.versions[latest_version]
         self._warn_if_deprecated(func, latest_version)
         return func(*args, **kwargs)
 
-    def _warn_if_deprecated(self, func: Callable, version: str) -> None:
+    def _warn_if_deprecated(self, func: Callable, _version: str) -> None:
         """
         Issue a deprecation warning if the function version is deprecated.
 
         Args:
             func (Callable): The function to check.
-            version (str): The version identifier.
+            _version (str): The version identifier.
         """
         if getattr(func, '_deprecated', False):
             warnings.warn(
-                f"Version '{version}' of function '{self.name}' is deprecated.",
+                f"Version '{_version}' of function '{self.name}' is deprecated.",
                 DeprecationWarning,
             )
 
@@ -283,12 +271,12 @@ class VersionedFunction:
             version_id (str): The version identifier to validate.
 
         Raises:
-            ValueError: If the version is already registered or invalid.
+            VersionAlreadyExistsError: If the version is already registered or invalid.
         """
         if self._version_exists(version_id):
-            raise ValueError(f"Version '{version_id}' is already registered for function '{self.name}'.")
+            raise VersionExistsError(f"Version '{version_id}' is already registered for function '{self.name}'.")
         if not self._is_valid_semantic_version(version_id):
-            raise ValueError(f"Version '{version_id}' is not a valid semantic version.")
+            raise InvalidVersionError(f"Version '{version_id}' is not a valid semantic version.")
 
     def _version_exists(self, version_id: str) -> bool:
         """

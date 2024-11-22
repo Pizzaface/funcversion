@@ -1,8 +1,12 @@
-import pytest
-import warnings
 import asyncio
+import warnings
 
-from funcversion import version, VersionNotFoundError, VersionedFunction
+import pytest
+from pytest_assert_utils import util
+
+from funcversion import VersionedFunction, VersionNotFoundError, version
+from funcversion.exceptions import (InvalidVersionError, NoVersionsFoundError,
+                                    VersionExistsError)
 
 
 def test_global_function_versions():
@@ -15,8 +19,8 @@ def test_global_function_versions():
         return 'Hello, version 2.0.0!'
 
     assert greet() == 'Hello, version 2.0.0!'
-    assert greet(version='1.0.0') == 'Hello, version 1.0.0!'
-    assert greet(version='2.0.0') == 'Hello, version 2.0.0!'
+    assert greet(_version='1.0.0') == 'Hello, version 1.0.0!'
+    assert greet(_version='2.0.0') == 'Hello, version 2.0.0!'
 
 
 def test_instance_method_versions():
@@ -31,7 +35,7 @@ def test_instance_method_versions():
 
     greeter = Greeter()
     assert greeter.greet() == 'Hello from instance, version 2.0.0!'
-    assert greeter.greet(version='1.0.0') == 'Hello from instance, version 1.0.0!'
+    assert greeter.greet(_version='1.0.0') == 'Hello from instance, version 1.0.0!'
 
 
 def test_class_method_binding():
@@ -47,7 +51,7 @@ def test_class_method_binding():
             return cls.__name__ + ' version 2.0.0'
 
     assert MyClass.method() == 'MyClass version 2.0.0'
-    assert MyClass.method(version='1.0.0') == 'MyClass version 1.0.0'
+    assert MyClass.method(_version='1.0.0') == 'MyClass version 1.0.0'
 
 
 def test_class_method_versions():
@@ -63,7 +67,7 @@ def test_class_method_versions():
             return f'Hello from {cls.__name__}, version 2.0.0!'
 
     assert Greeter.greet() == 'Hello from Greeter, version 2.0.0!'
-    assert Greeter.greet(version='1.0.0') == 'Hello from Greeter, version 1.0.0!'
+    assert Greeter.greet(_version='1.0.0') == 'Hello from Greeter, version 1.0.0!'
 
 
 def test_static_method_versions():
@@ -79,7 +83,7 @@ def test_static_method_versions():
             return 'Hello from static method, version 2.0.0!'
 
     assert Greeter.greet() == 'Hello from static method, version 2.0.0!'
-    assert Greeter.greet(version='1.0.0') == 'Hello from static method, version 1.0.0!'
+    assert Greeter.greet(_version='1.0.0') == 'Hello from static method, version 1.0.0!'
 
 
 def test_deprecation_warning():
@@ -95,11 +99,12 @@ def test_deprecation_warning():
 
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter('always')
-        result = func(version='1.0.0')
+        result = func(_version='1.0.0')
         assert len(w) == 1
         assert issubclass(w[0].category, DeprecationWarning)
         assert 'is deprecated' in str(w[0].message)
         assert result == 'Version 1.0.0'
+        assert func.deprecated_versions == ['1.0.0']
 
 
 def test_version_not_found_error():
@@ -108,7 +113,7 @@ def test_version_not_found_error():
         return 'Version 1.0.0'
 
     with pytest.raises(VersionNotFoundError):
-        func(version='2.0.0')
+        func(_version='2.0.0')
 
 
 def test_remove_version():
@@ -124,7 +129,7 @@ def test_remove_version():
 
     assert func() == 'Version 1.0.0'
     with pytest.raises(VersionNotFoundError):
-        func(version='2.0.0')
+        func(_version='2.0.0')
 
 
 def test_available_versions():
@@ -147,17 +152,74 @@ def test_available_versions():
 def test_no_versions_registered():
     func = VersionedFunction('nonexistent_function')
 
-    with pytest.raises(ValueError):
+    with pytest.raises(NoVersionsFoundError):
         func()
+
+def test_remove_invalid_version():
+    func = VersionedFunction('invalid_version')
+    with pytest.raises(VersionNotFoundError):
+        func.remove_version('1.0.0')
+
+
+def test_deprecate_invalid_version():
+    func = VersionedFunction('invalid_version')
+    with pytest.raises(VersionNotFoundError):
+        func.deprecate_version('1.0.0')
+
+def test_callables():
+    funcs = {}
+    @version('1.0.0')
+    def func():
+        return 'Version 1.0.0'
+
+    funcs['1.0.0'] = func
+
+    @version('2.0.0')
+    def func():
+        return 'Version 2.0.0'
+
+    funcs['2.0.0'] = func
+
+    assert util.Dict.containing('1.0.0', '2.0.0') == func.callables
+
+def test_repr():
+    @version('1.0.0')
+    def func():
+        return 'Version 1.0.0'
+
+    @version('2.0.0')
+    def func():
+        return 'Version 2.0.0'
+
+    assert repr(func) == util.Str.containing('1.0.0', '2.0.0')
 
 
 def test_invalid_version_identifier():
-    with pytest.raises(ValueError):
+    with pytest.raises(InvalidVersionError):
 
         @version('invalid_version')
         def func():
             pass
 
+def test_invalid_version_identifier_via_add_version():
+    func = VersionedFunction('1.0.0')
+    with pytest.raises(InvalidVersionError):
+        func.add_version('invalid_version', lambda: None)
+
+def test_duplicate_version_registration_via_add_version():
+    func = VersionedFunction('1.0.0')
+    func.add_version('1.0.0', lambda: None)
+    with pytest.raises(VersionExistsError):
+        func.add_version('1.0.0', lambda: None)
+
+def test_grab_function_self():
+    class MyClass:
+        @version('1.0.0')
+        def method(self):
+            return self
+
+    obj = MyClass()
+    assert obj is obj.method()
 
 def test_multiple_classes_same_method_name():
     class ClassA:
@@ -187,7 +249,7 @@ def test_function_with_arguments():
         return a - b
 
     assert add(3, 2) == 1  # Latest version subtracts
-    assert add(3, 2, version='1.0.0') == 5  # Version 1.0.0 adds
+    assert add(3, 2, _version='1.0.0') == 5  # Version 1.0.0 adds
 
 
 def test_method_with_arguments():
@@ -202,7 +264,7 @@ def test_method_with_arguments():
 
     calc = Calculator()
     assert calc.compute(3, 2) == 6  # Latest version multiplies
-    assert calc.compute(3, 2, version='1.0.0') == 5  # Version 1.0.0 adds
+    assert calc.compute(3, 2, _version='1.0.0') == 5  # Version 1.0.0 adds
 
 
 def test_version_ordering():
@@ -243,7 +305,7 @@ def test_method_on_inherited_class():
 
     assert base.method() == 'BaseClass version 1.0.0'
     assert sub.method() == 'SubClass version 2.0.0'
-    assert sub.method(version='1.0.0') == 'BaseClass version 1.0.0'
+    assert sub.method(_version='1.0.0') == 'BaseClass version 1.0.0'
 
 
 def test_method_deprecation():
@@ -261,7 +323,7 @@ def test_method_deprecation():
 
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter('always')
-        result = obj.method(version='1.0.0')
+        result = obj.method(_version='1.0.0')
         assert len(w) == 1
         assert issubclass(w[0].category, DeprecationWarning)
         assert 'is deprecated' in str(w[0].message)
@@ -269,7 +331,7 @@ def test_method_deprecation():
 
 
 def test_duplicate_version_registration():
-    with pytest.raises(ValueError):
+    with pytest.raises(VersionExistsError):
 
         @version('1.0.0')
         def func():
@@ -281,7 +343,7 @@ def test_duplicate_version_registration():
 
 
 def test_invalid_semantic_version():
-    with pytest.raises(ValueError):
+    with pytest.raises(InvalidVersionError):
 
         @version('invalid_version')  # This is an invalid version string
         def func():
@@ -298,7 +360,7 @@ def test_module_level_functions():
         return 'Module function version 2.0.0'
 
     assert module_func() == 'Module function version 2.0.0'
-    assert module_func(version='1.0.0') == 'Module function version 1.0.0'
+    assert module_func(_version='1.0.0') == 'Module function version 1.0.0'
 
 
 def test_nested_functions():
@@ -315,7 +377,7 @@ def test_nested_functions():
 
     inner_func = outer()
     assert inner_func() == 'Inner function version 2.0.0'
-    assert inner_func(version='1.0.0') == 'Inner function version 1.0.0'
+    assert inner_func(_version='1.0.0') == 'Inner function version 1.0.0'
 
 
 def test_function_attributes():
@@ -400,6 +462,41 @@ def test_multiple_functions_same_name_different_modules():
 
     del sys.modules[module_name]
 
+def test_add_version_to_existing_function():
+    @version('1.0.0')
+    def func():
+        return 'Version 1.0.0'
+
+    func.add_version('2.0.0', lambda: 'Version 2.0.0')
+
+    assert func() == 'Version 2.0.0'
+    assert func(_version='1.0.0') == 'Version 1.0.0'
+
+def test_remove_version_from_existing_function():
+    @version('1.0.0')
+    def func():
+        return 'Version 1.0.0'
+
+    func.remove_version('1.0.0')
+
+    with pytest.raises(NoVersionsFoundError):
+        func()
+
+def test_get_current_version():
+    @version('1.0.0')
+    def func():
+        return 'Version 1.0.0'
+
+    @version('2.0.0')
+    def func():
+        return 'Version 2.0.0'
+
+    assert func.current_version == '2.0.0'
+
+def test_get_current_version_no_versions():
+    func = VersionedFunction('no_versions')
+    with pytest.raises(NoVersionsFoundError):
+        func.current_version
 
 @pytest.mark.asyncio
 def test_async_functions():
@@ -417,7 +514,7 @@ def test_async_functions():
 
     async def main():
         assert await async_func() == 'Async version 2.0.0'
-        assert await async_func(version='1.0.0') == 'Async version 1.0.0'
+        assert await async_func(_version='1.0.0') == 'Async version 1.0.0'
 
     asyncio.run(main())
 
@@ -438,7 +535,7 @@ def test_async_method():
 
     async def main():
         assert await obj.async_method() == 'Async method version 2.0.0'
-        assert await obj.async_method(version='1.0.0') == 'Async method version 1.0.0'
+        assert await obj.async_method(_version='1.0.0') == 'Async method version 1.0.0'
 
     asyncio.run(main())
 
@@ -460,7 +557,7 @@ def test_async_class_method():
 
     async def main():
         assert await MyClass.async_method() == 'Async class method version 2.0.0'
-        assert await MyClass.async_method(version='1.0.0') == 'Async class method version 1.0.0'
+        assert await MyClass.async_method(_version='1.0.0') == 'Async class method version 1.0.0'
 
     asyncio.run(main())
 
@@ -482,6 +579,6 @@ def test_async_static_method():
 
     async def main():
         assert await MyClass.async_method() == 'Async static method version 2.0.0'
-        assert await MyClass.async_method(version='1.0.0') == 'Async static method version 1.0.0'
+        assert await MyClass.async_method(_version='1.0.0') == 'Async static method version 1.0.0'
 
     asyncio.run(main())

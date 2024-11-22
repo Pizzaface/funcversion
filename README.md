@@ -25,19 +25,22 @@
 ```python
 from funcversion import version
 
+
 @version('1.0.0')
 def greet(name):
     return f'Hello, {name}!'
+
 
 @version('2.0.0')
 def greet(name):
     return f'Hi, {name}!'
 
+
 # Call the latest version (2.0.0)
 print(greet('Alice'))  # Output: Hi, Alice!
 
 # Call a specific version (1.0.0)
-print(greet('Bob', version='1.0.0'))  # Output: Hello, Bob!
+print(greet('Bob', _version='1.0.0'))  # Output: Hello, Bob!
 
 # List available versions
 print(greet.available_versions)  # Output: ['1.0.0', '2.0.0']
@@ -73,8 +76,9 @@ print(greet('Dana', version='1.0.0'))
 ```python
 from funcversion import version
 
+
 class Calculator:
-    
+
     @version('1.0.0')
     @classmethod
     def add(cls, a, b):
@@ -86,14 +90,15 @@ class Calculator:
         print("Adding numbers:")
         return a + b
 
+
 # Call the latest version (2.0.0)
-print(Calculator.add(5, 7))  
+print(Calculator.add(5, 7))
 # Output:
 # Adding numbers:
 # 12
 
 # Call a specific version (1.0.0)
-print(Calculator.add(5, 7, version='1.0.0'))  # Output: 12
+print(Calculator.add(5, 7, _version='1.0.0'))  # Output: 12
 ```
 
 ### Versioning Static Methods
@@ -101,8 +106,9 @@ print(Calculator.add(5, 7, version='1.0.0'))  # Output: 12
 ```python
 from funcversion import version
 
+
 class Formatter:
-    
+
     @version('1.0.0')
     @staticmethod
     def format_text(text):
@@ -113,11 +119,12 @@ class Formatter:
     def format_text(text):
         return text.upper()
 
+
 # Call the latest version (2.0.0)
 print(Formatter.format_text('Hello World'))  # Output: HELLO WORLD
 
 # Call a specific version (1.0.0)
-print(Formatter.format_text('Hello World', version='1.0.0'))  # Output: hello world
+print(Formatter.format_text('Hello World', _version='1.0.0'))  # Output: hello world
 ```
 
 ## API Reference

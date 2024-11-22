@@ -25,9 +25,9 @@ print(obj.my_method.current_version)  # Should print '2.0.0'
 print(obj.my_method.callables)  # Should print a dict mapping versions to the corresponding callable
 
 obj.my_method()  # Should print "Version 2.0.0" (latest version)
-obj.my_method(version='1.0.0')  # Should print "Version 1.0.0"
-obj.my_method(version='1.1.0')  # Should print "Version 1.1.0"
+obj.my_method(_version='1.0.0')  # Should print "Version 1.0.0"
+obj.my_method(_version='1.1.0')  # Should print "Version 1.1.0"
 
 # Deprecate a version
 obj.my_method.deprecate_version('1.0.0')
-obj.my_method(version='1.0.0')
+obj.my_method(_version='1.0.0')
