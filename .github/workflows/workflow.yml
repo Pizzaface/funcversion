@@ -1,70 +1,62 @@
-name: Lint and Format with Ruff and Blue
+name: Lint and Format with Ruff and isort
 
 on:
   push:
     branches:
-      - master  # Adjust the branch name as needed
+      - master
 
 jobs:
   lint-and-format:
-    runs-on: ubuntu-latest  # GitHub-hosted runner; automatically updated by GitHub
+    runs-on: ubuntu-latest
 
     strategy:
       matrix:
-        python-version: ["3.11"]  # Specify the Python versions you want to test against
+        python-version: ["3.11"]
 
     steps:
-      # 1. Checkout the repository
+      # Checkout the repository and fetch full history to enable pushing changes
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Required to push changes back
+          fetch-depth: 0
 
-      # 2. Set up Python
+      # Set up Python environment
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4  # Ensure using the latest major version
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
 
-      # 4. Install dependencies with pip
+      # Install necessary tools for linting and formatting
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install blue ruff isort
+          pip install ruff isort
 
-      # 5. Format code with Blue
-      - name: Format Code with Blue
-        run: |
-          blue ./funcversion
-
-      # 6. Lint code with Ruff
-      - name: Lint Code with Ruff
-        run: |
-          ruff check ./funcversion
-          
-      # 7. Format code with Ruff
-      - name: Lint Code with Ruff
+      # Format code with Ruff
+      - name: Format Code with Ruff
         run: |
           ruff format ./funcversion
 
-      # 8. Commit and push any formatting changes made by Blue
-      - name: Commit Formatted Code
+      # Sort imports with isort
+      - name: Sort Imports with isort
         run: |
-          # Configure Git with a bot user
+          isort ./funcversion
+
+      # Lint code with Ruff
+      - name: Lint Code with Ruff
+        run: |
+          ruff check ./funcversion
+
+      # Commit and push any formatting changes
+      - name: Commit and Push Changes
+        run: |
           git config --local user.name "github-actions[bot]"
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          
-          # Stage changes in the specified directory
           git add ./funcversion
-          
-          # Check if there are any changes to commit
           if ! git diff --cached --quiet; then
-            # Commit changes with a message that includes [skip ci] to prevent triggering workflows again
-            git commit -m "Apply Blue formatting [skip ci]"
-            # Push changes back to the repository securely using GITHUB_TOKEN
+            git commit -m "Apply formatting changes with Ruff and isort [skip ci]"
             git push
           else
             echo "No formatting changes to commit."
-          fi
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Securely pass the token
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
