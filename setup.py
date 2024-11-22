@@ -4,7 +4,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="funcversion",
-    version="0.1.1",
+    version="0.1.3",
     description="A Python library for managing multiple versions of functions using decorators.",
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
