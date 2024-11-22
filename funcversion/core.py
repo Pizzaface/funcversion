@@ -1,11 +1,11 @@
 import warnings
 from collections import defaultdict
 from types import MethodType
-from typing import Any, Callable, Type, Optional, Union
+from typing import Any, Callable, Optional, Type, Union
 
 from packaging import version as pkg_version  # For semantic versioning
 
-from .exceptions import VersionNotFoundError, NoVersionsFoundError, InvalidVersionError, VersionExistsError
+from .exceptions import InvalidVersionError, NoVersionsFoundError, VersionExistsError, VersionNotFoundError
 
 # Global registry to store function versions
 _version_registry: defaultdict[str, dict[str, Callable]] = defaultdict(dict)

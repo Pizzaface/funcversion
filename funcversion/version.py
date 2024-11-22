@@ -1,6 +1,7 @@
 from typing import Callable
 
-from packaging.version import Version as PkgVersion, InvalidVersion
+from packaging.version import InvalidVersion
+from packaging.version import Version as PkgVersion
 
 from funcversion import VersionedFunction
 from funcversion.core import _version_registry, _versioned_functions_registry
