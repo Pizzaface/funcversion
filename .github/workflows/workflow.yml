@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - master  # Adjust the branch name as needed
+      
+permissions:
+  contents: write  # Grants write access to repository contents
 
 jobs:
   lint-and-format:
