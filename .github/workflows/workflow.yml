@@ -3,7 +3,10 @@ name: Lint, Format, Test, Build, and Publish
 on:
   push:
     branches:
-      - master  # Adjust the branch name as needed
+      - master
+    tags:
+      - 'v*.*.*'
+      - 'v*.*.*-*'
 
 permissions:
   contents: write  # Grants write access to repository contents
@@ -89,6 +92,7 @@ jobs:
     needs: test  # Ensures this job runs after the test job succeeds
     runs-on: ubuntu-latest
     environment: pypi  # Associates this job with the 'pypi' environment
+    if: startsWith(github.ref, 'refs/tags/v') # This condition ensures it only runs for tags starting with 'v'
 
     permissions:
       id-token: write

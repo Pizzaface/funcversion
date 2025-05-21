@@ -169,3 +169,22 @@ Contributions are welcome! Please open an issue or submit a pull request on [Git
 ## License
 
 This project is licensed under the [MIT License](LICENSE).
+
+## Releasing a New Version
+
+This project uses GitHub Actions to automatically build and publish new versions to PyPI.
+Releases are triggered when a new Git tag matching the pattern `v*.*.*` (e.g., `v0.1.0`, `v1.2.3`) or `v*.*.*-*` (e.g., `v0.1.0-alpha.1`) is pushed to the repository.
+
+To release a new version:
+
+1.  **Ensure `pyproject.toml` is up-to-date:**
+    *   Verify that the `version` field under `[tool.poetry]` in `pyproject.toml` reflects the new version you intend to release. For example: `version = "0.1.33"`.
+2.  **Commit any pending changes:**
+    *   Make sure all your code changes are committed to the `master` branch.
+3.  **Create and push a Git tag:**
+    *   Use the following commands, replacing `vX.Y.Z` with the actual version number (e.g., `v0.1.33`):
+        ```bash
+        git tag vX.Y.Z
+        git push origin vX.Y.Z
+        ```
+    *   This will trigger the GitHub Actions workflow, which will build the package and publish it to PyPI.
